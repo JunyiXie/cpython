@@ -203,13 +203,6 @@ _PyInterpreterState_Enable(_PyRuntimeState *runtime)
 PyInterpreterState *
 PyInterpreterState_New(void)
 {
-    PyThreadState *tstate = _PyThreadState_GET();
-    /* tstate is NULL when Py_InitializeFromConfig() calls
-       PyInterpreterState_New() to create the main interpreter. */
-    if (_PySys_Audit(tstate, "cpython.PyInterpreterState_New", NULL) < 0) {
-        return NULL;
-    }
-
     PyInterpreterState *interp = PyMem_RawCalloc(1, sizeof(PyInterpreterState));
     if (interp == NULL) {
         return NULL;
@@ -242,11 +235,6 @@ PyInterpreterState_New(void)
 
     HEAD_LOCK(runtime);
     if (interpreters->next_id < 0) {
-        /* overflow or Py_Initialize() not called! */
-        if (tstate != NULL) {
-            _PyErr_SetString(tstate, PyExc_RuntimeError,
-                             "failed to get an interpreter ID");
-        }
         PyMem_RawFree(interp);
         interp = NULL;
     }
@@ -272,10 +260,6 @@ PyInterpreterState_New(void)
     return interp;
 
 out_of_memory:
-    if (tstate != NULL) {
-        _PyErr_NoMemory(tstate);
-    }
-
     PyMem_RawFree(interp);
     return NULL;
 }
