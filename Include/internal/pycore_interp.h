@@ -13,6 +13,41 @@ extern "C" {
 #include "pycore_gil.h"           // struct _gil_runtime_state
 #include "pycore_gc.h"            // struct _gc_runtime_state
 #include "pycore_warnings.h"      // struct _warnings_runtime_state
+#include "obmalloc.h"
+
+struct _Py_pymalloc_state {
+    /* Array of objects used to track chunks of memory (arenas). */
+    struct arena_object* arenas;
+    /* Number of slots currently allocated in the `arenas` vector. */
+    uint maxarenas;
+
+    /* The head of the singly-linked, NULL-terminated list of available
+     * arena_objects.
+     */
+    struct arena_object* unused_arena_objects;
+
+    /* The head of the doubly-linked, NULL-terminated at each end, list of
+     * arena_objects associated with arenas that have pools available.
+     */
+    struct arena_object* usable_arenas;
+
+    /* nfp2lasta[nfp] is the last arena in usable_arenas with nfp free pools */
+    struct arena_object* nfp2lasta[MAX_POOLS_IN_ARENA + 1];
+
+    /* Number of arenas allocated that haven't been free()'d. */
+    size_t narenas_currently_allocated;
+
+    /* Total number of times malloc() called to allocate an arena. */
+    size_t ntimes_arena_allocated;
+    /* High water mark (max value ever seen) for narenas_currently_allocated. */
+    size_t narenas_highwater;
+    
+    poolp usedpools[2 * ((NB_SMALL_SIZE_CLASSES + 7) / 8) * 8];
+
+    int usedpools_initialized;
+    
+    Py_ssize_t raw_allocated_blocks;
+};
 
 struct _pending_calls {
     PyThread_type_lock lock;
@@ -317,6 +352,8 @@ struct _is {
 
     struct ast_state ast;
     struct type_cache type_cache;
+    struct _Py_pymalloc_state pymalloc_state;
+    
 };
 
 extern void _PyInterpreterState_ClearModules(PyInterpreterState *interp);
