@@ -119,6 +119,7 @@
 
 #include "Python.h"
 #include "pycore_dtoa.h"
+#include "pycore_interp.h"
 
 /* if PY_NO_SHORT_FLOAT_REPR is defined, then don't even try to compile
    the following code */
@@ -153,11 +154,6 @@
 #if !defined(WORDS_BIGENDIAN) && defined(DOUBLE_IS_BIG_ENDIAN_IEEE754)
 #error "doubles and ints have incompatible endianness"
 #endif
-
-
-typedef uint32_t ULong;
-typedef int32_t Long;
-typedef uint64_t ULLong;
 
 #undef DEBUG
 #ifdef Py_DEBUG
@@ -297,8 +293,6 @@ BCinfo {
 
 #define FFFFFFFF 0xffffffffUL
 
-#define Kmax 7
-
 /* struct Bigint is used to represent arbitrary-precision integers.  These
    integers are stored in sign-magnitude format, with the magnitude stored as
    an array of base 2**32 digits.  Bigints are always normalized: if x is a
@@ -321,14 +315,6 @@ BCinfo {
        significant (x[0]) to most significant (x[wds-1]).
 */
 
-struct
-Bigint {
-    struct Bigint *next;
-    int k, maxwds, sign, wds;
-    ULong x[1];
-};
-
-typedef struct Bigint Bigint;
 
 #ifndef Py_USING_MEMORY_DEBUGGER
 
@@ -351,7 +337,6 @@ typedef struct Bigint Bigint;
    Bfree to PyMem_Free.  Investigate whether this has any significant
    performance on impact. */
 
-static Bigint *freelist[Kmax+1];
 
 /* Allocate space for a Bigint with up to 1<<k digits */
 
@@ -361,9 +346,10 @@ Balloc(int k)
     int x;
     Bigint *rv;
     unsigned int len;
-
-    if (k <= Kmax && (rv = freelist[k]))
-        freelist[k] = rv->next;
+    PyInterpreterState *is = PyInterpreterState_Get();
+    
+    if (k <= Kmax && (rv = is->bigint_freelist[k]))
+        is->bigint_freelist[k] = rv->next;
     else {
         x = 1 << k;
         len = (sizeof(Bigint) + (x-1)*sizeof(ULong) + sizeof(double) - 1)
@@ -393,8 +379,9 @@ Bfree(Bigint *v)
         if (v->k > Kmax)
             FREE((void*)v);
         else {
-            v->next = freelist[v->k];
-            freelist[v->k] = v;
+            PyInterpreterState *is = PyInterpreterState_Get();
+            v->next = is->bigint_freelist[v->k];
+            is->bigint_freelist[v->k] = v;
         }
     }
 }

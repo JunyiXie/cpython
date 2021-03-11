@@ -1,4 +1,6 @@
 #ifndef PY_NO_SHORT_FLOAT_REPR
+#ifndef Py_CORE_DTOA_H
+#define Py_CORE_DTOA_H
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -17,7 +19,22 @@ PyAPI_FUNC(void) _Py_dg_freedtoa(char *s);
 PyAPI_FUNC(double) _Py_dg_stdnan(int sign);
 PyAPI_FUNC(double) _Py_dg_infinity(int sign);
 
+#define Kmax 7
+
+typedef uint32_t ULong;
+typedef int32_t Long;
+typedef uint64_t ULLong;
+
+struct
+Bigint {
+    struct Bigint *next;
+    int k, maxwds, sign, wds;
+    ULong x[1];
+};
+
+typedef struct Bigint Bigint;
 #ifdef __cplusplus
 }
 #endif
+#endif /* !Py_CORE_DTOA_H */
 #endif   /* !PY_NO_SHORT_FLOAT_REPR */
