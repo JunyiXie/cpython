@@ -1325,6 +1325,7 @@ class Test_TestLoader(unittest.TestCase):
         self.assertEqual(list(loader.loadTestsFromModule(m)), tests_1)
 
         loader.testMethodPrefix = 'test'
+        loader.cleanupLoadedTestCases()
         self.assertEqual(list(loader.loadTestsFromModule(m)), tests_2)
 
     # "String giving the prefix of method names which will be interpreted as

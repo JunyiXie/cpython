@@ -73,13 +73,16 @@ class TestLoader(object):
     testNamePatterns = None
     suiteClass = suite.TestSuite
     _top_level_dir = None
-
+    loadedTests = {}
     def __init__(self):
         super(TestLoader, self).__init__()
         self.errors = []
         # Tracks packages which we have called into via load_tests, to
         # avoid infinite re-entrancy.
         self._loading_packages = set()
+    def cleanupLoadedTestCases(self):
+        """clean up all loaded test cases"""
+        TestLoader.loadedTests.clear()
 
     def loadTestsFromTestCase(self, testCaseClass):
         """Return a suite of all test cases contained in testCaseClass"""
@@ -120,8 +123,17 @@ class TestLoader(object):
         tests = []
         for name in dir(module):
             obj = getattr(module, name)
+            try:
+                if obj in TestLoader.loadedTests:
+                    continue
+            except TypeError:
+                pass
             if isinstance(obj, type) and issubclass(obj, case.TestCase):
                 tests.append(self.loadTestsFromTestCase(obj))
+                try:
+                    TestLoader.loadedTests[obj] = True
+                except TypeError:
+                    pass
 
         load_tests = getattr(module, 'load_tests', None)
         tests = self.suiteClass(tests)
